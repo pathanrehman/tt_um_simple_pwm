@@ -5,7 +5,7 @@
 
 `default_nettype none
 
-module tt_um_example (
+module tt_um_simple_pwm (
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
@@ -16,12 +16,49 @@ module tt_um_example (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  // All output pins must be assigned. If not used, assign to 0.
-  assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
-  assign uio_out = 0;
-  assign uio_oe  = 0;
-
-  // List all unused inputs to prevent warnings
-  wire _unused = &{ena, clk, rst_n, 1'b0};
+    // PWM Configuration
+    wire [7:0] duty_cycle = ui_in[7:0];  // 8-bit duty cycle input (0-255)
+    
+    // Internal signals
+    reg [7:0] pwm_counter;    // 8-bit counter for PWM generation
+    reg pwm_output;           // PWM output signal
+    
+    // PWM Counter - counts from 0 to 255, then repeats
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pwm_counter <= 8'b0;  // Reset counter to 0
+        end else if (ena) begin
+            pwm_counter <= pwm_counter + 1;  // Increment counter every clock cycle
+        end
+    end
+    
+    // PWM Generation Logic
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pwm_output <= 1'b0;  // Reset PWM output to LOW
+        end else if (ena) begin
+            if (pwm_counter < duty_cycle)
+                pwm_output <= 1'b1;  // Output HIGH when counter < duty_cycle
+            else
+                pwm_output <= 1'b0;  // Output LOW when counter >= duty_cycle
+        end
+    end
+    
+    // Output Assignments
+    assign uo_out[0] = pwm_output;        // Main PWM output
+    assign uo_out[1] = pwm_counter[0];    // Counter LSB (for debugging)
+    assign uo_out[2] = pwm_counter[1];    // Counter bit 1 (for debugging)
+    assign uo_out[3] = pwm_counter[2];    // Counter bit 2 (for debugging)
+    assign uo_out[4] = pwm_counter[3];    // Counter bit 3 (for debugging)
+    assign uo_out[5] = pwm_counter[4];    // Counter bit 4 (for debugging)
+    assign uo_out[6] = pwm_counter[5];    // Counter bit 5 (for debugging)
+    assign uo_out[7] = pwm_counter[6];    // Counter MSB (for debugging)
+    
+    // Bidirectional pins - not used, set as inputs
+    assign uio_out = 8'b0;
+    assign uio_oe = 8'b0;
+    
+    // List all unused inputs to prevent warnings
+    wire _unused = &{uio_in, 1'b0};
 
 endmodule
